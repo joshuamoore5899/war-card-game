@@ -15,6 +15,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
+  background: limegreen;
 }
 
 
@@ -34,12 +35,15 @@ button {
   margin: 10px;
 }
 
-#war {
+#war-section {
   height: 200px;
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 40px;
+
+}
+#war {
+  cursor: pointer;
 }
 
 .hidden {

@@ -8,6 +8,9 @@ let player1Flips = 0;
 let player2Flips = 0;
 let player1Score = 0;
 let player2Score = 0;
+let warCheck = false;
+let warCount = 0;
+let totalCards = 52;
 
 fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1')
   .then(res => res.json())
@@ -20,6 +23,7 @@ fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1')
   });
 
 document.querySelector('#reset').addEventListener('click', reset);
+document.querySelector('#war').addEventListener('click', warGame);
 
 function reset() {
   deckId = '';
@@ -29,6 +33,9 @@ function reset() {
   player2Flips = 0;
   player1Score = 0;
   player2Score = 0;
+  warCheck = false;
+  warCount = 0;
+  totalCards = 52;
 
   fetch('https://deckofcardsapi.com/api/deck/new/shuffle/?deck_count=1')
     .then(res => res.json())
@@ -40,10 +47,15 @@ function reset() {
         console.log(`error ${err}`)
     });
 
+    document.querySelector('#winner').innerText = ""
     document.querySelector('#player1Score').innerText = player1Score;
     document.querySelector('#player2Score').innerText = player2Score;
     document.querySelector('#player1Image').src = "";
     document.querySelector('#player2Image').src = "";
+    document.querySelector('#war').classList.add('hidden');
+    document.querySelector('#war').innerText = "";
+    document.querySelector('#player1Button').classList.remove('hidden');
+    document.querySelector('#player2Button').classList.remove('hidden');
 }
 
 
@@ -52,6 +64,18 @@ document.querySelector('#player1Button').addEventListener('click', flipCard1);
 document.querySelector('#player2Button').addEventListener('click', flipCard2);
 
 async function flipCard1() {
+  console.log('In flipCard1');
+  if (warCheck === false) {
+    document.querySelector('#winner').innerText = "";
+    document.querySelector('#player1War').innerText = "";
+    document.querySelector('#player2War').innerText = "";
+  }
+
+  if (warCheck === true) {
+    return;
+  }
+
+  warCheck = false;
 
   if (player1Flips > player2Flips) {
     return;
@@ -73,10 +97,52 @@ async function flipCard1() {
     });
 
     player1Flips++;
-    checkWinner();
+    await checkWinner();
+}
+
+async function flipCardWar1() {
+  console.log('In flipCardWar1');
+  warCount = 0;
+  let flipURL = `https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=2`
+  await fetch(flipURL)
+    .then(res => res.json())
+    .then(data => {
+    })
+    .catch(err => {
+        console.log(`error ${err}`)
+    });
+    player1Flips += 2;
+    // await flipCard1();
+}
+
+async function flipCardWar2() {
+  console.log('In flipCardWar2');
+  warCount = 0;
+  let flipURL = `https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=2`
+  await fetch(flipURL)
+    .then(res => res.json())
+    .then(data => {
+    })
+    .catch(err => {
+        console.log(`error ${err}`)
+    });
+    player2Flips += 2;
+    // await flipCard2();
 }
 
 async function flipCard2() {
+  console.log('In flipCard2');
+  if (warCheck === false) {
+    document.querySelector('#winner').innerText = "";
+    document.querySelector('#player1War').innerText = "";
+    document.querySelector('#player2War').innerText = "";
+  }
+
+  if (warCheck === true) {
+    return;
+  }
+
+  warCheck = false;
 
   if (player2Flips > player1Flips) {
     return;
@@ -97,10 +163,11 @@ async function flipCard2() {
     });
 
     player2Flips++;
-    checkWinner();
+    await checkWinner();
 }
 
-function checkWinner() {
+async function checkWinner() {
+  console.log('In checkWinner');
   if (player1Flips != player2Flips) {
     return;
   }
@@ -109,32 +176,95 @@ function checkWinner() {
     console.log('player2Num: ' + player2Num);
     if (player1Num > player2Num) {
       player1Score += 2;
+      totalCards -= 2;
     }
     else if (player1Num < player2Num) {
+      totalCards -= 2;
       player2Score += 2;
     }
     else {
-      player2Score += 2;
+      if (totalCards > 8) {
+        await war();
+        warCount = 0;
+      }
+      else {
+        document.querySelector('#winner').innerText = 'Not enough cards left for war. Nobody wins these cards. Keep going...';
+        totalCards -= 2;
+      }
+
     }
+    console.log('TotalCards = ' + totalCards)
   }
 
   document.querySelector('#player1Score').innerText = player1Score;
   document.querySelector('#player2Score').innerText = player2Score;
 
-  if (player1Score + player2Score === 52) {
-    gameOver();
+  if (totalCards === 0) {
+    await gameOver();
   }
 }
 
+async function warGame() {
+  console.log('In warGame');
+  if (warCount < 1) {
+    let flipURL = `https://deckofcardsapi.com/api/deck/${deckId}/draw/?count=2`
+
+      await fetch(flipURL)
+      .then(res => res.json())
+      .then(data => {
+        document.querySelector('#player1Image').src = data.cards[0].image;
+        player1Num = convertToNum(data.cards[0].value);
+        document.querySelector('#player2Image').src = data.cards[1].image;
+        player2Num = convertToNum(data.cards[1].value);
+      })
+      .catch(err => {
+          console.log(`error ${err}`)
+      });
+      if (player1Num > player2Num) {
+        player1Score += 8;
+        totalCards -= 8;
+      }
+      else if (player1Num < player2Num) {
+        player2Score += 8;
+        totalCards -= 8;
+      }
+      else {
+        document.querySelector('#winner').innerText = 'It\'s a tie. Nobody wins these cards. Keep going...';
+      }
+      document.querySelector('#player1Score').innerText = player1Score;
+      document.querySelector('#player2Score').innerText = player2Score;
+    }
+    warCount++;
+    document.querySelector('#war').classList.add('hidden');
+    warCheck = false;
+    document.querySelector('#player1War').innerText = "";
+    document.querySelector('#player2War').innerText = "";
+}
+
+async function war() {
+  console.log('In war');
+  warCheck = true;
+  document.querySelector('#war').classList.remove('hidden');
+  document.querySelector('#war').innerText = 'Time for war!'
+  document.querySelector('#player1War').innerText = `1 2`;
+  document.querySelector('#player2War').innerText = `1 2`;
+  await flipCardWar1();
+  await flipCardWar2();
+}
+
 function gameOver() {
+  console.log('In gameOver');
   let winner = '';
   if (player1Score > player2Score) {
     winner = 'Player 1';
   }
-  else {
+  else if (player1Score < player2Score) {
     winner = 'Player 2';
   }
-  document.querySelector('#war').innerText = `${winner} wins!!!`;
+  else {
+    winner = 'Nobody';
+  }
+  document.querySelector('#winner').innerText = `${winner} wins!!!`;
   document.querySelector('#player1Button').classList.add('hidden');
   document.querySelector('#player2Button').classList.add('hidden');
 }
